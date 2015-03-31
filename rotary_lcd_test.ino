@@ -30,7 +30,7 @@ volatile unsigned long lastBlueButtonTime = 0;
 
 #define BUFFER_LENGTH 21
 char readBuffer[BUFFER_LENGTH];
-char screenMessageBuffer[BUFFER_LENGTH];
+//char screenMessageBuffer[BUFFER_LENGTH];
 int readBufferPosition = 0;
 
 void setup()
@@ -57,7 +57,7 @@ void setup()
     lcd.print("Hello.");
     Serial.println("Hello.");
     delay(1000);
-    screenMessageBuffer[0] = '\0';
+    //screenMessageBuffer[0] = '\0';
     refreshScreen();
     sendColor();
 }
@@ -192,7 +192,7 @@ void loop()
                 }
             }
 
-            strcpy(screenMessageBuffer, readBuffer);
+            //strcpy(screenMessageBuffer, readBuffer);
             valueWasReceived = 1;
             screenBufferChanged = 1;
             readBufferPosition = 0;
@@ -311,7 +311,6 @@ void loop()
         red = newRedValue;
         green = newGreenValue;
         blue = newBlueValue;
-
         setLedColor(red, green, blue);
         screenBufferChanged = 1;
 
