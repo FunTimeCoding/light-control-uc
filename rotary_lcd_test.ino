@@ -5,31 +5,33 @@
 // addr, en, rw, rs, d4, d5, d6, d7, bl, blpol
 LiquidCrystal_I2C lcd(0x20, 6, 5, 4, 0, 1, 2, 3, 7, NEGATIVE);
 
-RotaryEncoder encoder_red(P2_1, P2_0);
-RotaryEncoder encoder_green(P2_3, P2_2);
-RotaryEncoder encoder_blue(P2_5, P2_4);
+RotaryEncoder redEncoder(P2_1, P2_0);
+RotaryEncoder greenEncoder(P2_3, P2_2);
+RotaryEncoder blueEncoder(P2_5, P2_4);
 
 int red = 0;
 int green = 0;
 int blue = 0;
 
-volatile int state_red = LOW;
-volatile int state_green = LOW;
-volatile int state_blue = LOW;
+volatile int volatileRedButtonState = LOW;
+volatile int volatileGreenButtonState = LOW;
+volatile int volatileBlueButtonState = LOW;
 
-int button_state_red = LOW;
-int button_state_green = LOW;
-int button_state_blue = LOW;
+int redButtonState = LOW;
+int greenButtonState = LOW;
+int blueButtonState = LOW;
 
-volatile unsigned long button_time_red = 0;
-volatile unsigned long last_button_time_red = 0;
-volatile unsigned long button_time_green = 0;
-volatile unsigned long last_button_time_green = 0;
-volatile unsigned long button_time_blue = 0;  
-volatile unsigned long last_button_time_blue = 0; 
+volatile unsigned long redButtonTime = 0;
+volatile unsigned long lastRedButtonTime = 0;
+volatile unsigned long greenButtonTime = 0;
+volatile unsigned long lastGreenButtonTime = 0;
+volatile unsigned long blueButtonTime = 0;
+volatile unsigned long lastBlueButtonTime = 0;
 
-String read_buffer = "";
-String screen_line = "";
+#define BUFFER_LENGTH 21
+char readBuffer[BUFFER_LENGTH];
+char screenMessageBuffer[BUFFER_LENGTH];
+int readBufferPosition = 0;
 
 void setup()
 {
@@ -40,58 +42,60 @@ void setup()
     pinMode(P1_4, INPUT_PULLUP);
     pinMode(P1_5, INPUT_PULLUP);
 
-    attachInterrupt(P1_3, button_red_pressed, FALLING);
-    attachInterrupt(P1_4, button_green_pressed, FALLING);
-    attachInterrupt(P1_5, button_blue_pressed, FALLING);
+    attachInterrupt(P1_3, redButtonPressed, FALLING);
+    attachInterrupt(P1_4, greenButtonPressed, FALLING);
+    attachInterrupt(P1_5, blueButtonPressed, FALLING);
 
     Wire.begin();
     Wire.beginTransmission(9);
     Wire.write('o');
     Wire.endTransmission();
 
-    set_led_color(0, 0, 0);
+    setLedColor(0, 0, 0);
 
     lcd.setCursor(0, 0);
-    lcd.print("hello");
-    Serial.println("hello");
+    lcd.print("Hello.");
+    Serial.println("Hello.");
     delay(1000);
-    update_screen();
+    screenMessageBuffer[0] = '\0';
+    refreshScreen();
+    sendColor();
 }
 
-void button_red_pressed()
+void redButtonPressed()
 {
-    button_time_red = millis();
+    redButtonTime = millis();
 
-    if(button_time_red - last_button_time_red > 250)
+    if(redButtonTime - lastRedButtonTime > 250)
     {
-        state_red = !state_red;
-        last_button_time_red = button_time_red;
+        volatileRedButtonState = !volatileRedButtonState;
+        lastRedButtonTime = redButtonTime;
     }
 }
 
-void button_green_pressed()
+void greenButtonPressed()
 {
-    button_time_green = millis();
+    greenButtonTime = millis();
 
-    if(button_time_green - last_button_time_green > 250)
+    if(greenButtonTime - lastGreenButtonTime > 250)
     {
-        state_green = !state_green;
-        last_button_time_green = button_time_green;
+        volatileGreenButtonState = !volatileGreenButtonState;
+        lastGreenButtonTime = greenButtonTime;
     }
 }
 
-void button_blue_pressed()
+void blueButtonPressed()
 {
-    button_time_blue = millis();
+    blueButtonTime = millis();
 
-    if(button_time_blue - last_button_time_blue > 250)
+    if(blueButtonTime - lastBlueButtonTime > 250)
     {
-        state_blue = !state_blue;
-        last_button_time_blue = button_time_blue;
+        volatileBlueButtonState = !volatileBlueButtonState;
+        lastBlueButtonTime = blueButtonTime;
     }
 }
 
-void set_led_color(int r, int g, int b)
+void setLedColor(int r, int g, int b)
 {
     Wire.beginTransmission(9);
     Wire.write('n');
@@ -101,159 +105,49 @@ void set_led_color(int r, int g, int b)
     Wire.endTransmission();
 }
 
-void update_screen()
+void sendColor()
 {
-    Serial.print("RGB: ");
+    Serial.print("C");
+    Serial.print(" ");
     Serial.print(red);
     Serial.print(" ");
     Serial.print(green);
     Serial.print(" ");
     Serial.print(blue);
     Serial.println();
+}
 
-    /*
-       Serial.print("Button pins: ");
-       Serial.print(digitalRead(P1_3));
-       Serial.print(" ");
-       Serial.print(digitalRead(P1_4));
-       Serial.print(" ");
-       Serial.print(digitalRead(P1_5));
-       Serial.println();
-     */
-
-    /*
-       Serial.print("Buttons global: ");
-       Serial.print(state_red);
-       Serial.print(" ");
-       Serial.print(state_green);
-       Serial.print(" ");
-       Serial.print(state_blue);
-       Serial.println();
-     */
-
+void refreshScreen()
+{
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("R:");
     lcd.setCursor(2, 0);
     lcd.print(red);
-
     lcd.setCursor(6, 0);
     lcd.print("G:");
     lcd.setCursor(8, 0);
     lcd.print(green);
-
     lcd.setCursor(12, 0);
     lcd.print("B:");
     lcd.setCursor(14, 0);
     lcd.print(blue);
+    //lcd.setCursor(0, 1);
+    //lcd.print(screenMessageBuffer);
 }
 
 void loop()
 {
-    encoder_red.tick();
-    encoder_green.tick();
-    encoder_blue.tick();
+    redEncoder.tick();
+    greenEncoder.tick();
+    blueEncoder.tick();
 
-    int newRed = encoder_red.getPosition();
-    int newGreen = encoder_green.getPosition();
-    int newBlue = encoder_blue.getPosition();
+    int newRedValue = redEncoder.getPosition();
+    int newGreenValue = greenEncoder.getPosition();
+    int newBlueValue = blueEncoder.getPosition();
 
-    if(newRed < 0)
-    {
-        encoder_red.setPosition(0);
-        newRed = 255;
-    }
-    else if(newRed > 255)
-    {
-        encoder_red.setPosition(255);
-        newRed = 255;
-    }
-
-    if(newGreen < 0)
-    {
-        encoder_green.setPosition(0);
-        newGreen = 0;
-    }
-    else if(newGreen > 255)
-    {
-        encoder_green.setPosition(255);
-        newGreen = 255;
-    }
-
-    if(newBlue < 0)
-    {
-        encoder_blue.setPosition(0);
-        newBlue = 0;
-    }
-    else if(newBlue > 255)
-    {
-        encoder_blue.setPosition(255);
-        newBlue = 255;
-    }
-
-    if(button_state_red != state_red)
-    {
-        button_state_red = state_red;
-        Serial.print("Button: red");
-        Serial.println();
-
-        if(newRed == 0)
-        {
-            newRed = 255;
-        }
-        else if(newRed == 255)
-        {
-            newRed = 0;
-        }
-        else
-        {
-            newRed = 0;
-        }
-
-        encoder_red.setPosition(newRed);
-    }
-    if(button_state_green != state_green)
-    {
-        button_state_green = state_green;
-        Serial.print("Button: green");
-        Serial.println();
-
-        if(newGreen == 0)
-        {
-            newGreen = 255;
-        }
-        else if(newGreen == 255)
-        {
-            newGreen = 0;
-        }
-        else
-        {
-            newGreen = 0;
-        }
-
-        encoder_green.setPosition(newGreen);
-    }
-    if(button_state_blue != state_blue)
-    {
-        button_state_blue = state_blue;
-        Serial.print("Button: blue");
-        Serial.println();
-
-        if(newBlue == 0)
-        {
-            newBlue = 255;
-        }
-        else if(newBlue == 255)
-        {
-            newBlue = 0;
-        }
-        else
-        {
-            newBlue = 0;
-        }
-
-        encoder_blue.setPosition(newBlue);
-    }
+    int valueWasReceived = 0;
+    int screenBufferChanged = 0;
 
     if(Serial.available() > 0)
     {
@@ -261,36 +155,174 @@ void loop()
 
         if(character == '\n')
         {
-            //update_screen();
-
-            lcd.setCursor(0, 1);
-            int len = read_buffer.length() + 1;
-            char buf[len];
-            read_buffer.toCharArray(buf, len);
-
-            lcd.print(buf);
-
-            Serial.print("Message: ");
-            Serial.print(read_buffer);
+            Serial.print("Msg: ");
+            Serial.print(readBuffer);
             Serial.println();
 
-            read_buffer = "";
+            if('C' == readBuffer[0])
+            {
+                char* token = strtok(readBuffer, " ");
+                int tokenNumber = 0;
+
+                while(token)
+                {
+                    int color = 0;
+
+                    if(1 == tokenNumber)
+                    {
+                        color = atoi(token);
+                        redEncoder.setPosition(color);
+                        newRedValue = color;
+                    }
+                    else if(2 == tokenNumber)
+                    {
+                        color = atoi(token);
+                        greenEncoder.setPosition(color);
+                        newGreenValue = color;
+                    }
+                    else if(3 == tokenNumber)
+                    {
+                        color = atoi(token);
+                        blueEncoder.setPosition(color);
+                        newBlueValue = color;
+                    }
+
+                    token = strtok(NULL, " ");
+                    tokenNumber++;
+                }
+            }
+
+            strcpy(screenMessageBuffer, readBuffer);
+            valueWasReceived = 1;
+            screenBufferChanged = 1;
+            readBufferPosition = 0;
+            readBuffer[0] = '\0';
         }
         else
         {
-            Serial.print(character);
-            Serial.println();
-            read_buffer.concat(character);
+            if((readBufferPosition + 1) < BUFFER_LENGTH)
+            {
+                readBuffer[readBufferPosition] = character;
+                readBufferPosition++;
+                readBuffer[readBufferPosition] = '\0';
+            }
+            else
+            {
+                Serial.print('_');
+            }
         }
     }
 
-    if(red != newRed || green != newGreen || blue != newBlue)
+    if(newRedValue < 0)
     {
-        red = newRed;
-        green = newGreen;
-        blue = newBlue;
+        redEncoder.setPosition(0);
+        newRedValue = 255;
+    }
+    else if(newRedValue > 255)
+    {
+        redEncoder.setPosition(255);
+        newRedValue = 255;
+    }
 
-        set_led_color(red, green, blue);
-        update_screen();
+    if(newGreenValue < 0)
+    {
+        greenEncoder.setPosition(0);
+        newGreenValue = 0;
+    }
+    else if(newGreenValue > 255)
+    {
+        greenEncoder.setPosition(255);
+        newGreenValue = 255;
+    }
+
+    if(newBlueValue < 0)
+    {
+        blueEncoder.setPosition(0);
+        newBlueValue = 0;
+    }
+    else if(newBlueValue > 255)
+    {
+        blueEncoder.setPosition(255);
+        newBlueValue = 255;
+    }
+
+    if(redButtonState != volatileRedButtonState)
+    {
+        redButtonState = volatileRedButtonState;
+
+        if(newRedValue == 0)
+        {
+            newRedValue = 255;
+        }
+        else if(newRedValue == 255)
+        {
+            newRedValue = 0;
+        }
+        else
+        {
+            newRedValue = 0;
+        }
+
+        redEncoder.setPosition(newRedValue);
+    }
+
+    if(greenButtonState != volatileGreenButtonState)
+    {
+        greenButtonState = volatileGreenButtonState;
+
+        if(newGreenValue == 0)
+        {
+            newGreenValue = 255;
+        }
+        else if(newGreenValue == 255)
+        {
+            newGreenValue = 0;
+        }
+        else
+        {
+            newGreenValue = 0;
+        }
+
+        greenEncoder.setPosition(newGreenValue);
+    }
+
+    if(blueButtonState != volatileBlueButtonState)
+    {
+        blueButtonState = volatileBlueButtonState;
+
+        if(newBlueValue == 0)
+        {
+            newBlueValue = 255;
+        }
+        else if(newBlueValue == 255)
+        {
+            newBlueValue = 0;
+        }
+        else
+        {
+            newBlueValue = 0;
+        }
+
+        blueEncoder.setPosition(newBlueValue);
+    }
+
+    if(red != newRedValue || green != newGreenValue || blue != newBlueValue)
+    {
+        red = newRedValue;
+        green = newGreenValue;
+        blue = newBlueValue;
+
+        setLedColor(red, green, blue);
+        screenBufferChanged = 1;
+
+        if(0 == valueWasReceived)
+        {
+            sendColor();
+        }
+    }
+
+    if(1 == screenBufferChanged)
+    {
+        refreshScreen();
     }
 }
